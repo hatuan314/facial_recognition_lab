@@ -1,0 +1,226 @@
+HƯỚNG DẪN TRIỂN KHAI ỨNG DỤNG NHẬN DIỆN KHUÔN MẶT REALTIME SỬ DỤNG PYTHON + OPENCV
+ 
+1. Mục tiêu bài toán
+Ứng dụng nhận diện khuôn mặt gồm hai chức năng chính:
+•	Training khuôn mặt người dùng: sử dụng webcam để thu thập ảnh khuôn mặt, lưu thành dataset theo tên.
+•	Nhận diện khuôn mặt realtime: webcam nhận diện các khuôn mặt đã training, hiển thị tên tương ứng.
+Phương pháp xử lý chính là Local Binary Patterns Histogram (LBPH) trong thư viện OpenCV.
+ 
+2. Cài đặt môi trường
+2.1. Cài đặt Python 3.11
+Truy cập website chính thức:
+https://www.python.org/downloads/
+Tải bản Python 3.11 (64-bit Installer).
+Trong quá trình cài đặt, đánh dấu:
+Add Python to PATH
+Sau đó nhấn Install Now.
+Kiểm tra phiên bản bằng Command Prompt:
+python --version
+Kết quả hợp lệ:
+Python 3.11.x
+ 
+3. Tạo project
+3.1. Tạo thư mục lưu code
+Đặt trong ổ không dấu và không khoảng trắng. Ví dụ:
+D:\caohoc\facerecog
+Trong thư mục này tạo các thư mục con:
+D:\caohoc\facerecog\
+    ├── haarcascades
+    ├── dataset
+    ├── trainer
+    └── main.py
+ 
+4. Tạo Virtual Environment và cài thư viện
+Mở Command Prompt và thực hiện:
+cd /d D:\caohoc\facerecog
+python -m venv venv
+Kích hoạt môi trường:
+venv\Scripts\activate
+Cập nhật pip:
+python -m pip install --upgrade pip
+Cài thư viện bắt buộc:
+pip install numpy==1.26.4
+pip install opencv-contrib-python==4.8.1.78
+Lưu ý: phải cài opencv-contrib-python, không phải opencv-python.
+Gói “contrib” chứa module cv2.face dùng cho LBPH Recognizer.
+ 
+5. Cài đặt mô hình phát hiện khuôn mặt
+Tải file:
+haarcascade_frontalface_default.xml
+Từ repo chính thức của OpenCV:
+https://github.com/opencv/opencv/tree/master/data/haarcascades
+Lưu vào:
+D:\caohoc\facerecog\haarcascades\haarcascade_frontalface_default.xml
+ 
+6. Mã nguồn ứng dụng
+Toàn bộ mã nguồn để trong file:
+D:\caohoc\facerecog\main.py
+Chỉnh sửa biến PROJECT_PATH đúng đường dẫn thư mục Project của bạn.
+ 
+6.1. Code full
+(Courier New 11)
+import cv2
+import os
+import numpy as np
+import pickle
+
+PROJECT_PATH = r"D:\caohoc\facerecog"
+
+DATASET_DIR = os.path.join(PROJECT_PATH, "dataset")
+TRAINER_DIR = os.path.join(PROJECT_PATH, "trainer")
+CASCADE_PATH = os.path.join(PROJECT_PATH, "haarcascades", "haarcascade_frontalface_default.xml")
+
+os.makedirs(DATASET_DIR, exist_ok=True)
+os.makedirs(TRAINER_DIR, exist_ok=True)
+
+def load_cascade():
+    if not os.path.exists(CASCADE_PATH):
+        raise FileNotFoundError(f"Không tìm thấy file cascade: {CASCADE_PATH}")
+    return cv2.CascadeClassifier(CASCADE_PATH)
+
+def get_camera():
+    cam = cv2.VideoCapture(0)
+    if not cam.isOpened():
+        raise Exception("Không mở được camera.")
+    return cam
+
+def capture_faces(name, samples=30):
+    cascade = load_cascade()
+    cap = get_camera()
+    person_dir = os.path.join(DATASET_DIR, name)
+    os.makedirs(person_dir, exist_ok=True)
+    count = 0
+
+    while True:
+        ret, frame = cap.read()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = cascade.detectMultiScale(gray, 1.3, 5)
+        for (x,y,w,h) in faces:
+            roi = cv2.resize(gray[y:y+h, x:x+w], (200,200))
+            cv2.imwrite(os.path.join(person_dir,f"{name}_{count}.jpg"), roi)
+            count += 1
+            cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
+
+        cv2.imshow("Capture", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q') or count >= samples:
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+def train_model():
+    faces = []
+    labels = []
+    map_label = {}
+    idx = 0
+
+    for root, dirs, files in os.walk(DATASET_DIR):
+        for file in files:
+            if file.endswith((".jpg",".png",".jpeg")):
+                path = os.path.join(root,file)
+                person = os.path.basename(root)
+                if person not in map_label:
+                    map_label[person] = idx
+                    idx += 1
+
+                img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+                img = cv2.resize(img,(200,200))
+                faces.append(img)
+                labels.append(map_label[person])
+
+    rec = cv2.face.LBPHFaceRecognizer_create()
+    rec.train(faces, np.array(labels))
+    rec.save(os.path.join(TRAINER_DIR, "trainer.yml"))
+    with open(os.path.join(TRAINER_DIR,"labels.pickle"), "wb") as f:
+        pickle.dump(map_label, f)
+
+def recognize():
+    cascade = load_cascade()
+    model = cv2.face.LBPHFaceRecognizer_create()
+    model.read(os.path.join(TRAINER_DIR, "trainer.yml"))
+
+    with open(os.path.join(TRAINER_DIR,"labels.pickle"), "rb") as f:
+        map_label = pickle.load(f)
+
+    reverse = {v:k for k,v in map_label.items()}
+    cam = get_camera()
+
+    while True:
+        ret,frame = cam.read()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = cascade.detectMultiScale(gray,1.3,5)
+
+        for(x,y,w,h) in faces:
+            roi = cv2.resize(gray[y:y+h, x:x+w],(200,200))
+            id_,conf = model.predict(roi)
+
+            name = reverse[id_] if conf < 80 else "Unknown"
+            color = (0,255,0) if name!="Unknown" else (0,0,255)
+
+            cv2.rectangle(frame,(x,y),(x+w,y+h),color,2)
+            cv2.putText(frame,name,(x,y-10),
+                        cv2.FONT_HERSHEY_SIMPLEX,0.8,color,2)
+
+        cv2.imshow("Recognition", frame)
+        if cv2.waitKey(1)&0xFF==ord('q'):
+            break
+
+    cam.release()
+    cv2.destroyAllWindows()
+
+def menu():
+    while True:
+        print("\n1. Thu ảnh training")
+        print("2. Train model")
+        print("3. Nhận diện realtime")
+        print("0. Thoát")
+        c=input("Chọn: ")
+
+        if c=="1":
+            name=input("Tên người (không dấu): ")
+            capture_faces(name)
+        elif c=="2":
+            train_model()
+        elif c=="3":
+            recognize()
+        else:
+            break
+
+if __name__=="__main__":
+    menu()
+ 
+7. Quy trình sử dụng
+7.1. Thu ảnh cho người dùng
+Chạy lệnh:
+python main.py
+Chọn:
+1
+Nhập tên không dấu, ví dụ:
+giang
+Ứng dụng mở webcam → thu 30 ảnh → lưu trong:
+D:\caohoc\facerecog\dataset\giang
+ 
+7.2. Train mô hình
+Chạy lại ứng dụng, chọn:
+2
+Sau khi train, ứng dụng sinh ra hai file:
+trainer\trainer.yml
+trainer\labels.pickle
+ 
+7.3. Nhận diện realtime
+Chọn:
+3
+Webcam bật → Nếu khuôn mặt tồn tại trong dataset → hiển thị tên.
+Nếu chưa có → hiển thị “Unknown”.
+ 
+8. Lưu ý quan trọng
+•	Tên thư mục project không chứa dấu tiếng Việt.
+•	Nên thu đa dạng ảnh: quay trái/phải, thay đổi ánh sáng.
+•	Mỗi người ≥ 30 ảnh để nhận diện ổn định.
+•	Conf < 80 là mức nhận diện hợp lý với LBPH.
+ 
+9. Mở rộng bài tập
+•	Lưu log nhận diện theo thời gian.
+•	Sử dụng Deep Learning (FaceNet, ArcFace).
+•	Sử dụng tracking (Sort/DeepSort) cho nhiều khuôn mặt.
+

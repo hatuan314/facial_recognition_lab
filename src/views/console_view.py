@@ -6,6 +6,7 @@ class ConsoleView:
         print("\n1. Thu ảnh training")
         print("2. Train model")
         print("3. Nhận diện realtime")
+        print("4. Đánh giá accuracy")  # ← Thêm dòng này
         print("0. Thoát")
     
     @staticmethod

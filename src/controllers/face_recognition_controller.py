@@ -14,6 +14,31 @@ class FaceRecognitionController:
         self._data_manager = DataManager()
         self._console_view = ConsoleView()
         self._video_view = VideoView()
+
+    # Thêm vào face_recognition_controller.py
+
+    def evaluate_model(self, use_cross_validation=False):
+        """
+        Đánh giá accuracy của model
+        """
+        try:
+            from src.models.model_evaluator import ModelEvaluator
+            
+            evaluator = ModelEvaluator(test_split=0.2)
+            
+            if use_cross_validation:
+                self._console_view.show_info("Đang chạy Cross-Validation...")
+                results = evaluator.cross_validate(k_folds=5)
+            else:
+                self._console_view.show_info("Đang đánh giá model...")
+                results = evaluator.evaluate()
+                evaluator.print_report(results)
+            
+            return results
+        
+        except Exception as e:
+            self._console_view.show_error(str(e))
+            raise
     
     def capture_faces(self, person_name, samples=None):
         samples = samples or Config.DEFAULT_SAMPLES
@@ -134,7 +159,9 @@ class FaceRecognitionController:
                 
                 elif choice == "3":
                     self.recognize_faces()
-                
+                    
+                elif choice == "4":
+                    self.evaluate_model()
                 else:
                     self._console_view.show_info("Thoát chương trình.")
                     break

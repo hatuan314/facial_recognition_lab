@@ -53,6 +53,7 @@ python main.py
 # 1. Thu ảnh training    - Collect training data
 # 2. Train model         - Train LBPH model
 # 3. Nhận diện realtime  - Real-time recognition
+# 4. Đánh giá accuracy   - Evaluate model performance
 # 0. Thoát              - Exit
 ```
 
@@ -70,7 +71,12 @@ python main.py
 > Choose: 2
 # Model trains and saves to trainer/
 
-# Step 3: Run recognition
+# Step 3: Evaluate model (optional)
+python main.py
+> Choose: 4
+# Runs evaluation with train/test split and metrics
+
+# Step 4: Run recognition
 python main.py
 > Choose: 3
 # Camera opens with real-time face recognition
@@ -91,7 +97,8 @@ facial_recognition_lab/
 │   │   ├── camera_service.py
 │   │   ├── face_detector.py
 │   │   ├── face_recognizer.py
-│   │   └── data_manager.py
+│   │   ├── data_manager.py
+│   │   └── model_evaluator.py
 │   └── views/                 # Presentation
 │       └── console_view.py
 │

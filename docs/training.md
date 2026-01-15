@@ -25,6 +25,7 @@ python main.py
 1. Thu ảnh training
 2. Train model         ← Select this option
 3. Nhận diện realtime
+4. Đánh giá accuracy   ← New evaluation option
 0. Thoát
 ```
 
@@ -35,6 +36,8 @@ python main.py
 4. Trains LBPH model
 5. Saves model to `trainer/trainer.yml`
 6. Saves labels to `trainer/labels.pickle`
+
+**Note:** For evaluation metrics, use option 4 which includes train/test split and comprehensive metrics.
 
 ---
 

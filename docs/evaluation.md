@@ -2,13 +2,22 @@
 
 ## Evaluation Overview
 
-**KHÔNG XÁC MINH - The current implementation does NOT include formal evaluation.**
+The facial recognition system now includes **formal evaluation functionality** through the `ModelEvaluator` class, providing comprehensive metrics and analysis of model performance.
+
+**Implemented features:**
+- ✅ Train/test split with stratified sampling
+- ✅ Accuracy, precision, recall, F1-score metrics
+- ✅ Confusion matrix
+- ✅ Per-person accuracy analysis
+- ✅ Confidence statistics and distribution
+- ✅ Cross-validation support
+- ✅ Manual metrics fallback (no scikit-learn required)
 
 This document describes:
-1. Current state (no evaluation)
-2. Proposed evaluation strategies
-3. Metrics recommendations
-4. Manual testing procedures
+1. Current implementation (fully functional)
+2. Evaluation API and usage
+3. Metrics calculations
+4. Interpretation guidelines
 
 ---
 
@@ -16,12 +25,21 @@ This document describes:
 
 ### What Exists
 
-**Manual testing only:**
-- User visually verifies recognition during inference
-- No automated metrics
-- No validation set
-- No test set
-- No accuracy measurements
+**Automated evaluation system:**
+- `ModelEvaluator` class in `src/models/model_evaluator.py`
+- `evaluate_model()` method in `FaceRecognitionController`
+- Train/test split with stratified sampling (default 80/20)
+- Full metrics suite (accuracy, precision, recall, F1)
+- Confusion matrix visualization
+- Per-person accuracy breakdown
+- Confidence statistics and distribution analysis
+- Cross-validation support (k-fold)
+- Manual metrics fallback when scikit-learn unavailable
+
+**CLI integration:**
+- Menu option 4: "Đánh giá accuracy"
+- Interactive evaluation with detailed reports
+- Both single evaluation and cross-validation modes
 
 **Implicit evaluation:**
 - Confidence scores during inference
@@ -31,41 +49,94 @@ This document describes:
 ### What Does NOT Exist
 
 **Missing components:**
-- ❌ Train/validation/test split
-- ❌ Accuracy metrics
-- ❌ Precision/recall calculations
-- ❌ Confusion matrix
-- ❌ Cross-validation
-- ❌ Performance benchmarks
-- ❌ Error analysis tools
-- ❌ Evaluation scripts
+- ❌ ROC curves (not applicable to LBPH)
+- ❌ AUC metrics (not applicable to LBPH)
+- ❌ Learning curves (single-shot training)
+- ❌ Hyperparameter optimization
+- ❌ Automated threshold tuning
 
 ---
 
-## Proposed Evaluation Protocol
+## Evaluation Entrypoints
 
-### Data Splitting Strategy
+### CLI Entrypoint
 
-**Recommended split:**
+**Command:**
+```bash
+python main.py
+```
+
+**Interactive menu:**
+```
+1. Thu ảnh training
+2. Train model
+3. Nhận diện realtime
+4. Đánh giá accuracy  ← Select this option
+0. Thoát
+```
+
+**Process:**
+1. Loads trained model from `trainer/trainer.yml`
+2. Splits dataset into train/test (80/20 by default)
+3. Trains model on train set
+4. Evaluates on test set
+5. Displays comprehensive report
+
+---
+
+### Programmatic Entrypoint
+
+**File:** `src/controllers/face_recognition_controller.py`  
+**Method:** `FaceRecognitionController.evaluate_model(use_cross_validation=False)`
+
+**Usage:**
 ```python
-from sklearn.model_selection import train_test_split
+from src.controllers.face_recognition_controller import FaceRecognitionController
 
-# 70% train, 15% validation, 15% test
-X_train, X_temp, y_train, y_temp = train_test_split(
-    faces, labels, test_size=0.3, stratify=labels, random_state=42
-)
+controller = FaceRecognitionController()
 
-X_val, X_test, y_val, y_test = train_test_split(
-    X_temp, y_temp, test_size=0.5, stratify=y_temp, random_state=42
+# Single evaluation
+results = controller.evaluate_model()
+
+# Cross-validation
+results = controller.evaluate_model(use_cross_validation=True)
+```
+
+**Direct evaluation:**
+```python
+from src.models.model_evaluator import ModelEvaluator
+
+evaluator = ModelEvaluator(test_split=0.2)
+results = evaluator.evaluate()
+evaluator.print_report(results)
+```
+
+---
+
+## Data Splitting Strategy
+
+**Current implementation:**
+```python
+# ModelEvaluator.split_data() - Stratified sampling
+train_faces, train_labels, test_faces, test_labels = evaluator.split_data(
+    faces, labels, label_map
 )
 ```
 
-**Example with 30 images per person:**
-- Training: 21 images per person
-- Validation: 4-5 images per person
-- Test: 4-5 images per person
+**Split characteristics:**
+- Default: 80% train, 20% test
+- Stratified by person (ensures each person represented in both sets)
+- Random shuffle within each person's images
+- Minimum 1 test image per person (even with small datasets)
 
-**Stratification:** Ensures balanced representation per person
+**Example with 30 images per person:**
+- Training: ~24 images per person
+- Test: ~6 images per person
+
+**Cross-validation:**
+- k-fold cross-validation (default k=5)
+- Stratified folds
+- Averages metrics across folds
 
 ---
 
@@ -77,20 +148,16 @@ X_val, X_test, y_val, y_test = train_test_split(
 
 **Definition:** Percentage of correct predictions
 
+**Implementation:**
 ```python
-from sklearn.metrics import accuracy_score
-
-predictions = []
-for face in X_test:
-    pred_id, conf = model.predict(face)
-    if conf < Config.CONFIDENCE_THRESHOLD:
-        predictions.append(pred_id)
-    else:
-        predictions.append(-1)  # Unknown
-
-accuracy = accuracy_score(y_test, predictions)
-print(f"Accuracy: {accuracy:.2%}")
+# ModelEvaluator._manual_accuracy_score() or sklearn.metrics.accuracy_score
+accuracy = np.mean(np.array(y_true) == np.array(y_pred))
 ```
+
+**Current calculation:**
+- Predictions with confidence < threshold are considered
+- Predictions with confidence ≥ threshold are marked as "Unknown" (-1)
+- Accuracy includes correct rejections (Unknown predictions for unknown faces)
 
 **Interpretation:**
 - 90-100%: Excellent
@@ -102,12 +169,16 @@ print(f"Accuracy: {accuracy:.2%}")
 
 **Definition:** Of predicted positives, how many are correct?
 
+**Implementation:**
 ```python
-from sklearn.metrics import precision_score
-
-precision = precision_score(y_test, predictions, average='weighted')
-print(f"Precision: {precision:.2%}")
+# ModelEvaluator._manual_precision_score() or sklearn.metrics.precision_score
+precision = tp / (tp + fp)  # Weighted average across all labels
 ```
+
+**Current calculation:**
+- Weighted precision across all person labels
+- Unknown predictions (-1) are excluded from precision calculation
+- Handles cases where no true positives (returns 0.0)
 
 **Use case:** Minimize false positives (wrong person recognized)
 
@@ -115,12 +186,16 @@ print(f"Precision: {precision:.2%}")
 
 **Definition:** Of actual positives, how many are detected?
 
+**Implementation:**
 ```python
-from sklearn.metrics import recall_score
-
-recall = recall_score(y_test, predictions, average='weighted')
-print(f"Recall: {recall:.2%}")
+# ModelEvaluator._manual_recall_score() or sklearn.metrics.recall_score
+recall = tp / (tp + fn)  # Weighted average across all labels
 ```
+
+**Current calculation:**
+- Weighted recall across all person labels
+- Unknown predictions (-1) are excluded from recall calculation
+- Handles cases where no true positives (returns 0.0)
 
 **Use case:** Minimize false negatives (person not recognized)
 
@@ -128,12 +203,15 @@ print(f"Recall: {recall:.2%}")
 
 **Definition:** Harmonic mean of precision and recall
 
+**Implementation:**
 ```python
-from sklearn.metrics import f1_score
-
-f1 = f1_score(y_test, predictions, average='weighted')
-print(f"F1 Score: {f1:.2%}")
+# ModelEvaluator._manual_f1_score() or sklearn.metrics.f1_score
+f1 = 2 * (precision * recall) / (precision + recall)
 ```
+
+**Current calculation:**
+- Weighted F1 score across all person labels
+- Returns 0.0 if both precision and recall are 0.0
 
 **Use case:** Balanced metric when precision and recall both matter
 
@@ -141,25 +219,55 @@ print(f"F1 Score: {f1:.2%}")
 
 **Definition:** Matrix showing predicted vs. actual labels
 
+**Implementation:**
 ```python
-from sklearn.metrics import confusion_matrix
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-cm = confusion_matrix(y_test, predictions)
-
-plt.figure(figsize=(10, 8))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-plt.xlabel('Predicted')
-plt.ylabel('Actual')
-plt.title('Confusion Matrix')
-plt.show()
+# ModelEvaluator._manual_confusion_matrix() or sklearn.metrics.confusion_matrix
+cm = np.zeros((len(unique_labels), len(unique_labels)), dtype=int)
+for true_label, pred_label in zip(y_true, y_pred):
+    cm[true_idx, pred_idx] += 1
 ```
+
+**Current calculation:**
+- Includes all labels (including -1 for Unknown)
+- Square matrix with all unique labels
+- Rows: actual labels, Columns: predicted labels
 
 **Interpretation:**
 - Diagonal: Correct predictions
 - Off-diagonal: Misclassifications
 - Identify which people are confused with each other
+
+---
+
+### Additional Metrics
+
+#### 6. Per-Person Accuracy
+
+**Definition:** Accuracy calculated separately for each person
+
+**Implementation:**
+```python
+# ModelEvaluator.evaluate() - per_person_accuracy
+per_person_acc = {}
+for label_id in label_map.values():
+    mask = np.array(test_labels) == label_id
+    person_predictions = np.array(predictions)[mask]
+    person_true = np.array(test_labels)[mask]
+    person_acc = (person_predictions == person_true).sum() / len(person_predictions)
+```
+
+**Use case:** Identify which people are harder/easier to recognize
+
+#### 7. Confidence Statistics
+
+**Definition:** Statistical analysis of confidence scores
+
+**Metrics calculated:**
+- Mean confidence
+- Standard deviation
+- Distribution across ranges (<30, 30-50, 50-70, 70-80, 80-100, >100)
+
+**Use case:** Understand model confidence patterns and threshold effectiveness
 
 ---
 

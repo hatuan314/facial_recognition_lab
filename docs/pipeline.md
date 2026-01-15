@@ -21,6 +21,12 @@ Load Images → Label Mapping → LBPH Training → Model Serialization
 └─────────────────────────────────────────────────────────────────┘
 Camera Stream → Grayscale → Face Detection → ROI Extraction → 
 LBPH Prediction → Thresholding → Label Mapping → Visualization
+
+┌─────────────────────────────────────────────────────────────────┐
+│ PHASE 4: EVALUATION                                             │
+└─────────────────────────────────────────────────────────────────┘
+Load Dataset → Train/Test Split → Train Model → Predict Test Set → 
+Calculate Metrics → Generate Report
 ```
 
 ---
@@ -135,6 +141,77 @@ LBPH Prediction → Thresholding → Label Mapping → Visualization
 # Draws green rectangle on detected faces
 # Displays frame in OpenCV window
 # Exit condition: 'q' key or count >= samples
+```
+
+---
+
+## Phase 4: Evaluation Pipeline
+
+### Entry Point
+**File:** `src/controllers/face_recognition_controller.py`  
+**Method:** `evaluate_model(use_cross_validation=False)`  
+**Lines:** 20-41
+
+### Step-by-Step Flow
+
+#### 4.1 Data Loading
+**Module:** `src/models/data_manager.py`  
+**Function:** `DataManager.load_training_data()`
+
+```python
+# Input: dataset/ directory
+# Output: faces, labels, label_map
+# Process: Load all images, create label mapping
+```
+
+#### 4.2 Train/Test Split
+**Module:** `src/models/model_evaluator.py`  
+**Function:** `ModelEvaluator.split_data()`
+
+```python
+# Input: faces, labels, label_map
+# Process: Stratified split by person (80/20 default)
+# Output: train_faces, train_labels, test_faces, test_labels
+```
+
+#### 4.3 Model Training
+**Module:** `src/models/face_recognizer.py`  
+**Function:** `FaceRecognizer.train()`
+
+```python
+# Input: train_faces, train_labels
+# Process: Train LBPH model on training set
+# Output: Trained model
+```
+
+#### 4.4 Prediction
+**Module:** `src/models/face_recognizer.py`  
+**Function:** `FaceRecognizer.predict()`
+
+```python
+# Input: test_faces
+# Process: Predict each test face
+# Output: predictions, confidences
+```
+
+#### 4.5 Metrics Calculation
+**Module:** `src/models/model_evaluator.py`  
+**Functions:** Various metric calculation methods
+
+```python
+# Calculate: accuracy, precision, recall, F1
+# Additional: per-person accuracy, confidence stats
+# Output: results dictionary
+```
+
+#### 4.6 Report Generation
+**Module:** `src/models/model_evaluator.py`  
+**Function:** `ModelEvaluator.print_report()`
+
+```python
+# Input: results dictionary
+# Process: Format and display comprehensive report
+# Output: Console output with metrics
 ```
 
 ---

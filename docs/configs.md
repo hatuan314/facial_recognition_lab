@@ -8,6 +8,11 @@ The project uses a centralized configuration system via a Python class in `confi
 **Pattern:** Static class with class variables  
 **No external config files:** No YAML, JSON, or INI files
 
+**Dependencies:** `requirements.txt` specifies:
+- `numpy` - Array operations
+- `opencv-contrib-python` - Computer vision
+- `scikit-learn>=1.0.0` - Evaluation metrics (optional, fallback available)
+
 ---
 
 ## Configuration Schema

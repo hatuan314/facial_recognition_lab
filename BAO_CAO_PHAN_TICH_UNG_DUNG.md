@@ -32,7 +32,7 @@ Kiến trúc tuân thủ các nguyên tắc SOLID:
 
 - **Trách nhiệm duy nhất (Single Responsibility)**: Mỗi lớp chỉ có một trách nhiệm duy nhất
 - **Mở/Đóng (Open/Closed)**: Mở rộng cho phép thêm tính năng, đóng để sửa đổi
-- **Thế thế Liskov (Liskov Substitution)**: Các lớp con có thể thay thế lớp cha
+- **Thế Liskov (Liskov Substitution)**: Các lớp con có thể thay thế lớp cha
 - **Phân tách Interface (Interface Segregation)**: Các giao diện nhỏ và tập trung
 - **Đảo ngược Dependency (Dependency Inversion)**: Phụ thuộc vào trừu tượng, không phải cụ thể
 
@@ -106,15 +106,15 @@ facial_recognition_lab/
 
 **Luồng hoạt động**:
 1. Tải tất cả ảnh từ `dataset/`
-2. Tạo ánh xãn nhãn (tên → ID)
+2. Tạo ánh xạ nhãn (tên → ID)
 3. Thay đổi kích thước tất cả ảnh về 200×200
 4. Huấn luyện mô hình LBPH
 5. Lưu mô hình vào `trainer/trainer.yml`
-6. Lưu ánh xãn nhãn vào `trainer/labels.pickle`
+6. Lưu ánh xạ nhãn vào `trainer/labels.pickle`
 
 **Hợp đồng**:
 - Đầu vào: Danh sách[np.ndarray] faces, Danh sách[int] labels
-- Đầu ra: Tệp mô hình (.yml) và ánh xãn nhãn (.pickle)
+- Đầu ra: Tệp mô hình (.yml) và ánh xạ nhãn (.pickle)
 - Thuật toán: LBPH (Local Binary Patterns Histograms)
 
 ### 3. Nhận diện Thời gian thực (Real-time Recognition)
@@ -130,7 +130,7 @@ facial_recognition_lab/
 6. Cắt vùng quan tâm cho mỗi khuôn mặt
 7. Dự đoán bằng mô hình LBPH
 8. Áp dụng ngưỡng độ tin cậy
-9. Ánh xãn ID → tên người
+9. Ánh xạ ID → tên người
 10. Hiển thị kết quả với màu sắc:
     - Xanh lá: Nhận diện đúng
     - Đỏ: Không xác định hoặc độ tin cậy thấp
@@ -170,7 +170,7 @@ facial_recognition_lab/
 - **Python 3.7+**: Ngôn ngữ lập trình chính
 - **OpenCV (opencv-contrib-python)**: Thư viện thị giác máy tính
 - **NumPy**: Các thao tác mảng
-- **Pickle**: Tuần tự hóa cho ánh xãn nhãn
+- **Pickle**: Tuần tự hóa cho ánh xạ nhãn
 - **scikit-learn≥1.0.0**: Các chỉ số đánh giá (tùy chọn)
 
 ### Thuật toán
